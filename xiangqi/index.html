@@ -97,7 +97,7 @@ button.back{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15);
 <div id="toast"></div>
 <script>
 // ===================== Constants & State =====================
-const COLS=9,ROWS=10,CELL=60,PAD=40;
+const COLS=9,ROWS=10,CELL=105,PAD=70;
 const CW=PAD*2+(COLS-1)*CELL,CH=PAD*2+(ROWS-1)*CELL;
 const R_NAMES={1:'帅',2:'仕',3:'相',4:'馬',5:'車',6:'炮',7:'兵'};
 const B_NAMES={1:'将',2:'士',3:'象',4:'馬',5:'車',6:'炮',7:'卒'};
@@ -197,7 +197,7 @@ function drawBoard(){
   ctx.moveTo(PAD+3*CELL,PAD+7*CELL);ctx.lineTo(PAD+5*CELL,PAD+9*CELL);
   ctx.moveTo(PAD+5*CELL,PAD+7*CELL);ctx.lineTo(PAD+3*CELL,PAD+9*CELL);
   ctx.stroke();
-  ctx.fillStyle='#6b4c2a';ctx.font='bold 22px KaiTi,STKaiti,serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#6b4c2a';ctx.font='bold 38px KaiTi,STKaiti,serif';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillText('楚 河',PAD+2*CELL,PAD+4.5*CELL);
   ctx.fillText('汉 界',PAD+6*CELL,PAD+4.5*CELL);
   const starPos=[[1,2],[7,2],[0,3],[2,3],[4,3],[6,3],[8,3],[1,7],[7,7],[0,6],[2,6],[4,6],[6,6],[8,6]];
@@ -237,14 +237,14 @@ function drawLastMove(fr,fc,tr,tc){
 function drawPiece(r,c){
   const x=PAD+c*CELL,y=PAD+r*CELL,p=board[r][c];
   const isRed=p>0,code=Math.abs(p),radius=CELL*0.42;
-  ctx.save();ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=6;ctx.shadowOffsetX=2;ctx.shadowOffsetY=2;
+  ctx.save();ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=10;ctx.shadowOffsetX=3;ctx.shadowOffsetY=3;
   const pg=ctx.createRadialGradient(x-radius*0.3,y-radius*0.3,0,x,y,radius);
   pg.addColorStop(0,'#fff8e7');pg.addColorStop(1,'#e0cba0');
   ctx.fillStyle=pg;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
   ctx.restore();
-  ctx.strokeStyle=isRed?'#8b0000':'#1a1a1a';ctx.lineWidth=2;
+  ctx.strokeStyle=isRed?'#8b0000':'#1a1a1a';ctx.lineWidth=3;
   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke();
-  ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,radius-4,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,radius-7,0,Math.PI*2);ctx.stroke();
   ctx.fillStyle=isRed?'#8b0000':'#1a1a1a';
   ctx.font=`bold ${Math.floor(radius*1.1)}px KaiTi,STKaiti,serif`;
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -749,7 +749,7 @@ function doUndo(){
 function resizeCanvas(){
   const maxH=window.innerHeight-40;
   const maxW=maxH*9/10;
-  const scale=Math.min(1,maxH/CH,maxW/CW);
+  const scale=Math.min(maxH/CH,maxW/CW);
   canvas.style.width=CW*scale+'px';
   canvas.style.height=CH*scale+'px';
 }
