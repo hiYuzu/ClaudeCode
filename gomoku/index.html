@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>五子棋</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Segoe UI',sans-serif;color:#eee;overflow-x:hidden}
+.container{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px}
+h1{font-size:28px;letter-spacing:6px;color:#e0c97f;text-shadow:0 2px 8px rgba(224,201,127,.3)}
+.info-bar{display:flex;align-items:center;gap:20px;font-size:16px}
+.player-indicator{display:flex;align-items:center;gap:8px;padding:7px 16px;border-radius:8px;background:rgba(255,255,255,.06);transition:background .2s}
+.player-indicator.active{background:rgba(224,201,127,.15);box-shadow:0 0 12px rgba(224,201,127,.15)}
+.player-indicator.thinking{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.stone-icon{width:22px;height:22px;border-radius:50%;flex-shrink:0}
+.stone-icon.black{background:radial-gradient(circle at 35% 35%,#555,#111);box-shadow:1px 1px 2px rgba(0,0,0,.5)}
+.stone-icon.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc);box-shadow:1px 1px 2px rgba(0,0,0,.3)}
+.timer{font-size:12px;color:#c0a050;font-variant-numeric:tabular-nums;background:rgba(0,0,0,.2);padding:1px 5px;border-radius:3px}
+.score{font-variant-numeric:tabular-nums}
+canvas{border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:min(92vw,82vh);height:auto!important}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+button{padding:8px 18px;border:1px solid rgba(224,201,127,.35);background:rgba(224,201,127,.08);color:#e0c97f;border-radius:5px;font-size:14px;cursor:pointer;transition:all .15s}
+button:hover{background:rgba(224,201,127,.18)}
+button.primary{background:rgba(224,201,127,.22);border-color:rgba(224,201,127,.65);font-size:17px;padding:11px 32px}
+#status{font-size:18px;min-height:24px;color:#e0c97f;text-align:center}
+.forbid-hint{font-size:12px;color:#666;text-align:center;margin-top:-4px}
+.sep{width:1px;height:22px;background:rgba(224,201,127,.2)}
+/* Toast */
+#toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(180,40,40,.94);color:#fff;padding:16px 32px;border-radius:10px;font-size:17px;font-weight:600;z-index:20;pointer-events:none;opacity:0;transition:opacity .25s,transform .25s;text-align:center;max-width:320px;line-height:1.5}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+/* Menu */
+#menu{position:fixed;inset:0;background:rgba(10,10,30,.94);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;z-index:10;transition:opacity .3s}
+#menu.hidden{opacity:0;pointer-events:none}
+#menu h2{font-size:24px;color:#e0c97f;letter-spacing:3px}
+.menu-buttons{display:flex;flex-direction:column;gap:10px;align-items:center}
+.menu-buttons button{min-width:240px;text-align:center}
+.mode-tag{font-size:12px;color:#888;margin-top:-4px}
+.menu-sep{width:240px;height:1px;background:rgba(224,201,127,.2);margin:3px 0}
+.sub-panel{display:none;flex-direction:column;gap:12px;align-items:center}
+.sub-panel.show{display:flex}
+button.back{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15);color:#999;font-size:13px;padding:6px 20px;margin-top:4px}
+.diff-label{color:#777;font-size:12px}
+.side-row{display:flex;gap:14px;margin-top:4px}
+.side-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 24px;border-radius:10px;cursor:pointer;border:2px solid rgba(224,201,127,.25);background:rgba(224,201,127,.06);color:#e0c97f;font-size:16px;transition:all .2s;min-width:120px}
+.side-btn:hover{background:rgba(224,201,127,.15)}
+.side-btn .stone-icon{width:34px;height:34px}
+.side-hint{font-size:12px;color:#777}
+</style>
+</head>
+<body>
+<div id="menu">
+  <h1 style="font-size:38px;letter-spacing:10px;color:#e0c97f;text-shadow:0 2px 8px rgba(224,201,127,.3)">五 子 棋</h1>
+  <div class="sub-panel show" id="mainMenu"><h2>选择游戏模式</h2><div class="menu-buttons">
+    <button class="primary" id="btnAI">人机对战</button><div class="mode-tag">与 AI 对弈，可选难度和执子</div><div class="menu-sep"></div>
+    <button class="primary" id="btnLocal">本地双人</button><div class="mode-tag">两位玩家轮流落子</div>
+  </div></div>
+  <div class="sub-panel" id="diffMenu"><h2>选择 AI 难度</h2><div class="menu-buttons">
+    <button class="primary" id="btnEasy">简 单</button><div class="diff-label">偶尔犯错，适合新手</div>
+    <button class="primary" id="btnMedium">中 等</button><div class="diff-label">攻守兼备，有一定挑战</div>
+    <button class="primary" id="btnHard">困 难</button><div class="diff-label">深思熟虑，极具攻击性</div>
+    <button class="primary" id="btnHell">地 狱</button><div class="diff-label">深度推演，几乎无懈可击</div>
+  </div><button class="back" id="btnBack1">← 返回</button></div>
+  <div class="sub-panel" id="sideMenu"><h2>选择执子</h2>
+    <div class="side-row"><div class="side-btn" id="btnBlack"><span class="stone-icon black"></span><span>执黑先行</span></div><div class="side-btn" id="btnWhite"><span class="stone-icon white"></span><span>执白后手</span></div></div>
+    <div class="side-hint">黑棋先落子 · 适用禁手规则</div><button class="back" id="btnBack2">← 返回</button></div>
+</div>
+<div class="container">
+  <h1>五 子 棋</h1>
+  <div class="info-bar">
+    <div class="player-indicator active" id="p1"><span class="stone-icon black"></span><span id="p1label">黑棋</span><span class="score" id="score1">0</span><span class="timer" id="timer1"></span></div>
+    <div class="player-indicator" id="p2"><span class="stone-icon white"></span><span id="p2label">白棋</span><span class="score" id="score2">0</span><span class="timer" id="timer2"></span></div>
+  </div>
+  <canvas id="board"></canvas>
+  <div id="status">黑棋先行</div>
+  <div class="forbid-hint">黑棋禁手：三三 · 四四 · 长连</div>
+  <div class="btn-row">
+    <button id="undoBtn">悔棋</button><button id="restartBtn">重开</button><div class="sep"></div>
+    <button id="moveNumBtn">手数</button><button id="saveBtn">保存</button><button id="loadBtn">加载</button><div class="sep"></div>
+    <button id="switchBtn">切换模式</button>
+  </div>
+  <div class="btn-row" id="replayBar" style="display:none">
+    <button id="rpFirst">⏮</button><button id="rpPrev">◀</button><button id="rpNext">▶</button><button id="rpLast">⏭</button>
+    <button id="rpAuto">自动</button><button id="rpExit">退出回放</button>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const SZ=15,CELL=40,PAD=36,CSZ=PAD*2+(SZ-1)*CELL,SR=CELL*.43,CEN=7;
+const DIRS=[[0,1],[1,0],[1,1],[1,-1]];
+const SW=1e6,SLF=1e5,SDF=1e4,SLT=1e4,SDT=1e3,SL2=1e3,SD2=100,SMW=1e7;
+const canvas=document.getElementById('board'),ctx=canvas.getContext('2d');
+canvas.width=CSZ;canvas.height=CSZ;
+
+let board,curP,over,hist,wLine,scores=[0,0],mode=null,diff=null,humanP=1;
+let aiThink=false,moveGen=0,showNums=false,hoverR=-1,hoverC=-1;
+let forbidTmr=null,timers=[0,0],timerInt=null,timerRunning=false;
+let replayMode=false,replayIdx=0,replayAuto=false,replayAutoId=null;
+let audioCtx=null,winAnimId=null,winAlpha=.7,winDir=1;
+
+// ===================== Audio =====================
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)()}
+function playClick(freq){
+  try{
+    initAudio();if(!audioCtx)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=freq;
+    g.gain.setValueAtTime(.15,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.08);
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start();o.stop(audioCtx.currentTime+.1);
+  }catch(e){}
+}
+
+// ===================== Menu =====================
+const panels=['mainMenu','diffMenu','sideMenu'];
+function showP(id){panels.forEach(p=>document.getElementById(p).classList.remove('show'));document.getElementById(id).classList.add('show')}
+function showMenu(){document.getElementById('menu').classList.remove('hidden');showP('mainMenu')}
+function hideMenu(){document.getElementById('menu').classList.add('hidden')}
+function startGame(m,d,s){
+  mode=m;diff=d||null;humanP=s||1;hideMenu();
+  const dn=diff==='easy'?'简单':diff==='hard'?'困难':diff==='hell'?'地狱':'中等';
+  const al=mode==='ai'?'AI · '+dn:'';
+  document.getElementById('p1label').textContent=humanP===1?'黑棋 (你)':mode==='ai'?'黑棋 ('+al+')':'黑棋';
+  document.getElementById('p2label').textContent=humanP===2?'白棋 (你)':mode==='ai'?'白棋 ('+al+')':'白棋';
+  init();
+}
+document.getElementById('btnAI').onclick=()=>showP('diffMenu');
+document.getElementById('btnLocal').onclick=()=>startGame('local');
+document.getElementById('btnBack1').onclick=()=>showP('mainMenu');
+document.getElementById('btnBack2').onclick=()=>showP('diffMenu');
+document.getElementById('btnEasy').onclick=()=>{diff='easy';showP('sideMenu')};
+document.getElementById('btnMedium').onclick=()=>{diff='medium';showP('sideMenu')};
+document.getElementById('btnHard').onclick=()=>{diff='hard';showP('sideMenu')};
+document.getElementById('btnHell').onclick=()=>{diff='hell';showP('sideMenu')};
+document.getElementById('btnBlack').onclick=()=>startGame('ai',diff,1);
+document.getElementById('btnWhite').onclick=()=>startGame('ai',diff,2);
+document.getElementById('switchBtn').onclick=()=>{scores=[0,0];updScores();showMenu()};
+document.getElementById('moveNumBtn').onclick=()=>{showNums=!showNums;draw()};
+
+// ===================== Helpers =====================
+const getAI=()=>humanP===1?2:1;
+const isHuman=()=>mode==='local'||curP===humanP;
+const isAI=()=>mode==='ai'&&curP===getAI();
+function pName(p){if(mode==='local')return p===1?'黑棋':'白棋';return p===humanP?'你':'AI'}
+function updCursor(){canvas.style.cursor=(over||aiThink||!isHuman()||replayMode)?'default':'pointer'}
+function updScores(){document.getElementById('score1').textContent=scores[0];document.getElementById('score2').textContent=scores[1]}
+function findEmpty(){for(let d=0;d<SZ;d++)for(let r=CEN-d;r<=CEN+d;r++)for(let c=CEN-d;c<=CEN+d;c++)if(r>=0&&r<SZ&&c>=0&&c<SZ&&board[r][c]===0)return{r,c};return null}
+function showMsg(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(forbidTmr);forbidTmr=setTimeout(()=>e.classList.remove('show'),2000)}
+
+// ===================== Timer =====================
+function startTimer(){if(timerRunning)return;timerRunning=true;timerInt=setInterval(()=>{if(over||replayMode)return;timers[curP-1]++;updTimerUI()},1000)}
+function stopTimer(){timerRunning=false;clearInterval(timerInt)}
+function resetTimers(){stopTimer();timers=[0,0];updTimerUI()}
+function updTimerUI(){
+  const fmt=s=>{const m=Math.floor(s/60),sec=s%60;return m>0?m+':'+(sec<10?'0':'')+sec:sec+'s'};
+  document.getElementById('timer1').textContent=timers[0]?fmt(timers[0]):'';
+  document.getElementById('timer2').textContent=timers[1]?fmt(timers[1]):'';
+}
+
+// ===================== Save / Load =====================
+function saveGame(){
+  try{
+    const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers};
+    localStorage.setItem('gomoku_save',JSON.stringify(s));showMsg('棋局已保存');
+  }catch(e){showMsg('保存失败：存储空间不足')}
+}
+function loadGame(){
+  const raw=localStorage.getItem('gomoku_save');if(!raw){showMsg('没有找到存档');return}
+  try{
+    const s=JSON.parse(raw);moveGen++;board=s.board;curP=s.curP;over=s.over;hist=s.hist;
+    wLine=s.wLine;scores=s.scores;mode=s.mode;diff=s.diff;humanP=s.humanP;
+    timers=s.timers||[0,0];
+    resetTimers();if(!over)startTimer();
+    const dn=diff==='easy'?'简单':diff==='hard'?'困难':diff==='hell'?'地狱':'中等';
+    const al=mode==='ai'?'AI · '+dn:'';
+    document.getElementById('p1label').textContent=humanP===1?'黑棋 (你)':mode==='ai'?'黑棋 ('+al+')':'黑棋';
+    document.getElementById('p2label').textContent=humanP===2?'白棋 (你)':mode==='ai'?'白棋 ('+al+')':'白棋';
+    updScores();updTimerUI();updStatus();updInd();updCursor();draw();
+    if(!over&&isAI())triggerAI();
+    hideMenu();showMsg('棋局已加载');
+  }catch(e){showMsg('存档损坏')}
+}
+document.getElementById('saveBtn').onclick=saveGame;
+document.getElementById('loadBtn').onclick=loadGame;
+
+// ===================== Replay =====================
+function enterReplay(){
+  if(hist.length===0)return;stopWinAnim();replayMode=true;replayIdx=0;
+  document.getElementById('replayBar').style.display='flex';draw();
+}
+function exitReplay(){replayMode=false;replayAuto=false;clearInterval(replayAutoId);
+  document.getElementById('replayBar').style.display='none';draw()}
+function drawReplay(){
+  const h=hist.slice(0,replayIdx);
+  // Redraw board with only first replayIdx moves
+  drawBoard();
+  for(let i=0;i<h.length;i++){const m=h[i];drawStone(m.r,m.c,m.player,i+1)}
+  if(h.length>0){const last=h[h.length-1];drawLastMark(last.r,last.c)}
+  document.getElementById('status').textContent='回放 '+replayIdx+' / '+hist.length;
+}
+document.getElementById('rpFirst').onclick=()=>{replayIdx=0;drawReplay()};
+document.getElementById('rpPrev').onclick=()=>{if(replayIdx>0)replayIdx--;drawReplay()};
+document.getElementById('rpNext').onclick=()=>{if(replayIdx<hist.length)replayIdx++;drawReplay()};
+document.getElementById('rpLast').onclick=()=>{replayIdx=hist.length;drawReplay()};
+document.getElementById('rpAuto').onclick=function(){
+  replayAuto=!replayAuto;
+  this.textContent=replayAuto?'暂停':'自动';
+  clearInterval(replayAutoId);
+  if(replayAuto)replayAutoId=setInterval(()=>{if(replayIdx>=hist.length){replayAuto=false;clearInterval(replayAutoId);document.getElementById('rpAuto').textContent='自动';return}replayIdx++;drawReplay()},800);
+};
+document.getElementById('rpExit').onclick=exitReplay;
+
+// ===================== Forbidden =====================
+function cntLine(r,c,dr,dc,p){let n=1;for(let i=1;i<=5;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;n++}for(let i=1;i<=5;i++){const nr=r-dr*i,nc=c-dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;n++}return n}
+function exact5(r,c){for(const[dr,dc]of DIRS)if(cntLine(r,c,dr,dc,1)===5)return true;return false}
+function isBlackForbid(r,c){
+  if(board[r][c]!==0)return null;
+  board[r][c]=1;
+  if(exact5(r,c)){board[r][c]=0;return null}
+  for(const[dr,dc]of DIRS)if(cntLine(r,c,dr,dc,1)>=6){board[r][c]=0;return'长连禁手'}
+  let f4=0;for(const[dr,dc]of DIRS)f4+=cntFoursDir(r,c,dr,dc);
+  if(f4>=2){board[r][c]=0;return'四四禁手'}
+  let l3=0;for(const[dr,dc]of DIRS)l3+=cntL3Dir(r,c,dr,dc);
+  if(l3>=2){board[r][c]=0;return'三三禁手'}
+  board[r][c]=0;return null;
+}
+function cntFoursDir(r,c,dr,dc){
+  let seen=new Set();
+  for(let s=-4;s<=0;s++){
+    let bk=0,ec=0,er=-1,en=-1,keys=[],ok=true;
+    for(let i=0;i<5;i++){
+      const nr=r+(s+i)*dr,nc=c+(s+i)*dc;
+      if(nr<0||nr>=SZ||nc<0||nc>=SZ){ok=false;break}
+      const v=board[nr][nc];
+      if(v===1){bk++;keys.push(nr*SZ+nc)}else if(v===0){ec++;er=nr;en=nc}else{ok=false;break}
+    }
+    if(!ok||bk!==4||ec!==1)continue;
+    board[er][en]=1;const g=cntLine(er,en,dr,dc,1)===5;board[er][en]=0;
+    if(!g)continue;
+    keys.push(er*SZ+en);seen.add(keys.sort((a,b)=>a-b).join(','));
+  }
+  return seen.size;
+}
+function cntL3Dir(r,c,dr,dc){
+  for(let o=-4;o<=4;o++){
+    if(!o)continue;const nr=r+dr*o,nc=c+dc*o;
+    if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==0)continue;
+    board[nr][nc]=1;
+    if(isLive4(r,c,dr,dc)||isLive4(nr,nc,dr,dc)){board[nr][nc]=0;return 1}
+    board[nr][nc]=0;
+  }
+  return 0;
+}
+function isLive4(r,c,dr,dc){
+  let n=1,pe=0,ne=0;
+  for(let i=1;i<=4;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==1)break;n++;pe=i}
+  for(let i=1;i<=4;i++){const nr=r-dr*i,nc=c-dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==1)break;n++;ne=i}
+  if(n!==4)return false;
+  const pr=r+dr*(pe+1),pc=c+dc*(pe+1),qr=r-dr*(ne+1),qc=c-dc*(ne+1);
+  const po=pr>=0&&pr<SZ&&pc>=0&&pc<SZ&&board[pr][pc]===0;
+  const no=qr>=0&&qr<SZ&&qc>=0&&qc<SZ&&board[qr][qc]===0;
+  if(!po||!no)return false;
+  board[pr][pc]=1;const g1=cntLine(pr,pc,dr,dc,1)===5;board[pr][pc]=0;
+  board[qr][qc]=1;const g2=cntLine(qr,qc,dr,dc,1)===5;board[qr][qc]=0;
+  return g1&&g2;
+}
+
+// ===================== Drawing =====================
+function drawBoard(){
+  // Wood background with grain
+  const bg=ctx.createLinearGradient(0,0,CSZ,CSZ);
+  bg.addColorStop(0,'#dcb35c');bg.addColorStop(.3,'#d4a84a');bg.addColorStop(.5,'#dbb258');bg.addColorStop(.7,'#cfa040');bg.addColorStop(1,'#d8ad50');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,CSZ,CSZ);
+  // Subtle grain lines
+  ctx.strokeStyle='rgba(160,110,30,0.08)';ctx.lineWidth=1;
+  for(let i=0;i<CSZ;i+=6){ctx.beginPath();ctx.moveTo(0,i+Math.sin(i*.05)*3);ctx.lineTo(CSZ,i+Math.sin(i*.05+2)*3);ctx.stroke()}
+  // Border
+  ctx.strokeStyle='rgba(100,60,10,0.4)';ctx.lineWidth=2;
+  ctx.strokeRect(PAD-8,PAD-8,(SZ-1)*CELL+16,(SZ-1)*CELL+16);
+  // Grid
+  ctx.strokeStyle='#8b6914';ctx.lineWidth=1;
+  for(let i=0;i<SZ;i++){const p=PAD+i*CELL;ctx.beginPath();ctx.moveTo(PAD,p);ctx.lineTo(PAD+(SZ-1)*CELL,p);ctx.stroke();ctx.beginPath();ctx.moveTo(p,PAD);ctx.lineTo(p,PAD+(SZ-1)*CELL);ctx.stroke()}
+  // Stars
+  ctx.fillStyle='#8b6914';for(const r of[3,7,11])for(const c of[3,7,11]){ctx.beginPath();ctx.arc(PAD+c*CELL,PAD+r*CELL,3.5,0,Math.PI*2);ctx.fill()}
+  // Coordinates
+  ctx.font='10px sans-serif';ctx.fillStyle='rgba(100,60,10,0.6)';ctx.textAlign='center';ctx.textBaseline='top';
+  for(let c=0;c<SZ;c++)ctx.fillText(String.fromCharCode(65+c),PAD+c*CELL,PAD+(SZ-1)*CELL+8);
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let r=0;r<SZ;r++)ctx.fillText(''+(SZ-r),PAD-10,PAD+r*CELL);
+}
+function drawStone(r,c,p,num){
+  const x=PAD+c*CELL,y=PAD+r*CELL;
+  // Shadow
+  ctx.beginPath();ctx.arc(x+1.5,y+1.5,SR,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,0.18)';ctx.fill();
+  const g=ctx.createRadialGradient(x-SR*.3,y-SR*.3,SR*.1,x,y,SR);
+  if(p===1){g.addColorStop(0,'#666');g.addColorStop(1,'#111')}else{g.addColorStop(0,'#fff');g.addColorStop(1,'#bbb')}
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,SR,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=p===1?'#000':'#999';ctx.lineWidth=.5;ctx.stroke();
+  if(showNums&&num){ctx.font='bold 11px sans-serif';ctx.fillStyle=p===1?'rgba(255,255,255,.85)':'rgba(0,0,0,.7)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(num,x,y)}
+}
+function drawLastMark(r,c){ctx.strokeStyle='#e74c3c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(PAD+c*CELL,PAD+r*CELL,SR*.35,0,Math.PI*2);ctx.stroke()}
+function drawWinLine(){
+  if(!wLine)return;
+  ctx.strokeStyle=`rgba(231,76,60,${winAlpha})`;ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(PAD+wLine[0].c*CELL,PAD+wLine[0].r*CELL);ctx.lineTo(PAD+wLine[wLine.length-1].c*CELL,PAD+wLine[wLine.length-1].r*CELL);ctx.stroke();
+}
+function drawGhost(r,c){
+  if(r<0||r>=SZ||c<0||c>=SZ||board[r][c]!==0)return;
+  const x=PAD+c*CELL,y=PAD+r*CELL;
+  // Check forbidden for black
+  const forbid=curP===1?isBlackForbid(r,c):null;
+  if(forbid){ctx.strokeStyle='rgba(220,50,50,0.6)';ctx.lineWidth=2.5;const s=SR*.5;ctx.beginPath();ctx.moveTo(x-s,y-s);ctx.lineTo(x+s,y+s);ctx.moveTo(x+s,y-s);ctx.lineTo(x-s,y+s);ctx.stroke();return}
+  ctx.globalAlpha=.35;
+  const g=ctx.createRadialGradient(x-SR*.3,y-SR*.3,SR*.1,x,y,SR);
+  if(curP===1){g.addColorStop(0,'#666');g.addColorStop(1,'#111')}else{g.addColorStop(0,'#fff');g.addColorStop(1,'#bbb')}
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,SR,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+}
+function draw(){
+  if(replayMode){drawReplay();return}
+  drawBoard();
+  for(let i=0;i<hist.length;i++){const m=hist[i];drawStone(m.r,m.c,m.player,showNums?i+1:0)}
+  if(hist.length>0)drawLastMark(hist[hist.length-1].r,hist[hist.length-1].c);
+  if(hoverR>=0&&hoverC>=0&&!over&&!aiThink&&isHuman())drawGhost(hoverR,hoverC);
+  drawWinLine();
+}
+
+// ===================== Win Animation =====================
+let staticLayer=null;
+function startWinAnim(){
+  stopWinAnim();
+  staticLayer=document.createElement('canvas');staticLayer.width=CSZ;staticLayer.height=CSZ;
+  staticLayer.getContext('2d').drawImage(canvas,0,0);
+  winAlpha=.7;winDir=1;
+  (function tick(){winAlpha+=winDir*.03;if(winAlpha>.95)winDir=-1;if(winAlpha<.3)winDir=1;ctx.drawImage(staticLayer,0,0);drawWinLine();winAnimId=requestAnimationFrame(tick)})();
+}
+function stopWinAnim(){if(winAnimId){cancelAnimationFrame(winAnimId);winAnimId=null}}
+
+// ===================== Game =====================
+function init(){
+  moveGen++;stopWinAnim();
+  board=Array.from({length:SZ},()=>Array(SZ).fill(0));curP=1;over=false;hist=[];wLine=null;aiThink=false;hoverR=hoverC=-1;
+  replayMode=false;document.getElementById('replayBar').style.display='none';
+  resetTimers();startTimer();
+  updStatus();updInd();updCursor();draw();
+  if(isAI())triggerAI();
+}
+function updStatus(){if(over)return;document.getElementById('status').textContent=(curP===1?'黑棋':'白棋')+' · '+pName(curP)+' 落子'}
+function updInd(){
+  const p1=document.getElementById('p1'),p2=document.getElementById('p2');
+  p1.classList.toggle('active',curP===1&&!over);p2.classList.toggle('active',curP===2&&!over);
+  if(mode==='ai'){const ap=getAI();(ap===2?p2:p1).classList.toggle('thinking',aiThink);(ap===2?p1:p2).classList.remove('thinking')}
+}
+function checkWin(r,c){
+  const p=board[r][c];
+  for(const[dr,dc]of DIRS){let l=[{r,c}];for(let i=1;i<5;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;l.push({r:nr,c:nc})}for(let i=1;i<5;i++){const nr=r-dr*i,nc=c-dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;l.unshift({r:nr,c:nc})}if(l.length>=5)return l}
+  return null;
+}
+function placeStone(r,c){
+  if(over||board[r][c])return false;
+  board[r][c]=curP;hist.push({r,c,player:curP});
+  // Auto-save
+  autoSave();
+  playClick(curP===1?600:800);
+  const w=checkWin(r,c);
+  if(w){
+    let real=false;
+    if(curP===2){real=true}else{for(const[dr,dc]of DIRS)if(cntLine(r,c,dr,dc,1)===5){real=true;break}}
+    if(real){wLine=w;over=true;stopTimer();scores[curP-1]++;updScores();document.getElementById('status').textContent=pName(curP)+' 获胜！';startWinAnim();updInd();updCursor();return true}
+  }
+  if(hist.length===SZ*SZ){over=true;stopTimer();document.getElementById('status').textContent='平局！'}
+  else{curP=curP===1?2:1;updStatus()}
+  updInd();updCursor();draw();return true;
+}
+function autoSave(){try{const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers};localStorage.setItem('gomoku_autosave',JSON.stringify(s))}catch(e){}}
+
+function triggerAI(){
+  if(over||!isAI())return;aiThink=true;updInd();updCursor();
+  document.getElementById('status').textContent='AI 思考中...';
+  const delay=diff==='hell'?400:diff==='hard'?250:150;
+  const gen=moveGen;
+  setTimeout(()=>{
+    if(gen!==moveGen)return;
+    let mv=aiMove();
+    if(mv&&getAI()===1){const fb=isBlackForbid(mv.r,mv.c);if(fb){
+      mv=findSafe();
+      if(!mv){showMsg('黑棋无合法落子，跳过');curP=curP===1?2:1;aiThink=false;updStatus();updInd();updCursor();draw();return}
+    }}
+    aiThink=false;
+    if(mv){if(!placeStone(mv.r,mv.c)){const fb=findEmpty();if(fb)placeStone(fb.r,fb.c)}}
+    if(!over&&isAI())triggerAI();
+  },delay);
+}
+function findSafe(){
+  const AI=getAI(),HU=humanP,cands=getCands(2);
+  if(!cands.size)return findEmpty();
+  let sc=[];for(const k of cands){const r=Math.floor(k/SZ),c=k%SZ;if(isBlackForbid(r,c))continue;sc.push({r,c,q:scoreCell(r,c,AI)*1.1+scoreCell(r,c,HU)})}
+  if(!sc.length)return findEmpty();sc.sort((a,b)=>b.q-a.q);return sc[0];
+}
+
+// ===================== AI =====================
+function getCands(rng){const s=new Set();for(let r=0;r<SZ;r++)for(let c=0;c<SZ;c++)if(board[r][c])for(let dr=-rng;dr<=rng;dr++)for(let dc=-rng;dc<=rng;dc++){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<SZ&&nc>=0&&nc<SZ&&board[nr][nc]===0)s.add(nr*SZ+nc)}return s}
+function scoreCell(r,c,p){
+  let t=0;board[r][c]=p;
+  for(const[dr,dc]of DIRS){
+    let best=0;
+    for(let s=-4;s<=0;s++){
+      let cnt=0,ok=true;
+      for(let i=0;i<5;i++){const nr=r+(s+i)*dr,nc=c+(s+i)*dc;if(nr<0||nr>=SZ||nc<0||nc>=SZ){ok=false;break}const v=board[nr][nc];if(v===p)cnt++;else if(v===0)continue;else{ok=false;break}}
+      if(!ok)continue;
+      const bR=r+(s-1)*dr,bC=c+(s-1)*dc,aR=r+(s+5)*dr,aC=c+(s+5)*dc;
+      let oe=0;if(bR>=0&&bR<SZ&&bC>=0&&bC<SZ&&board[bR][bC]===0)oe++;if(aR>=0&&aR<SZ&&aC>=0&&aC<SZ&&board[aR][aC]===0)oe++;
+      let sc=0;
+      if(cnt>=5)sc=SW;else if(cnt===4)sc=oe===2?SLF:oe===1?SDF:0;else if(cnt===3)sc=oe===2?SLT:oe===1?SDT:0;else if(cnt===2)sc=oe===2?SL2:oe===1?SD2:0;
+      if(sc>best)best=sc;
+    }
+    t+=best;
+  }
+  board[r][c]=0;
+  t+=Math.max(0,10-(Math.abs(r-CEN)+Math.abs(c-CEN))*1.5);
+  return t;
+}
+function rankCands(cands,me,opp,n){let sc=[];for(const k of cands){const r=Math.floor(k/SZ),c=k%SZ;sc.push({r,c,q:scoreCell(r,c,me)*1.1+scoreCell(r,c,opp)})}sc.sort((a,b)=>b.q-a.q);return sc.slice(0,n)}
+function evalBoard(ai){
+  const hu=ai===1?2:1;let s=0;
+  const afK=new Set(),hfK=new Set(),alK=new Set(),hlK=new Set();
+  for(let r=0;r<SZ;r++)for(let c=0;c<SZ;c++)for(const[dr,dc]of DIRS){
+    const er=r+dr*4,ec=c+dc*4;if(er<0||er>=SZ||ec<0||ec>=SZ)continue;
+    let a=0,h=0,ak=[],hk=[];
+    for(let i=0;i<5;i++){const p=board[r+dr*i][c+dc*i];if(p===ai){a++;ak.push((r+dr*i)*SZ+(c+dc*i))}else if(p===hu){h++;hk.push((r+dr*i)*SZ+(c+dc*i))}}
+    if(a&&h||!a&&!h)continue;const n=a||h,isA=a>0;
+    if(n===5)s+=isA?SMW:-SMW;
+    else if(n===4){(isA?afK:hfK).add((isA?ak:hk).sort((a,b)=>a-b).join(','));s+=isA?5e5:-5e5}
+    else if(n===3){let oe=0;const br=r-dr,bc=c-dc,ar=r+dr*5,ac=c+dc*5;if(br>=0&&br<SZ&&bc>=0&&bc<SZ&&!board[br][bc])oe++;if(ar>=0&&ar<SZ&&ac>=0&&ac<SZ&&!board[ar][ac])oe++;
+      if(oe)(isA?alK:hlK).add((isA?ak:hk).sort((a,b)=>a-b).join(','));
+      s+=isA?(oe?8e3:2e3):(oe?-8e3:-2e3)}
+    else if(n===2){let oe=0;const br=r-dr,bc=c-dc,ar=r+dr*5,ac=c+dc*5;if(br>=0&&br<SZ&&bc>=0&&bc<SZ&&!board[br][bc])oe++;if(ar>=0&&ar<SZ&&ac>=0&&ac<SZ&&!board[ar][ac])oe++;s+=isA?(oe?200:50):(oe?-200:-50)}
+    else s+=isA?5:-5;
+  }
+  if(afK.size>=2)s+=2e6;if(alK.size>=2)s+=1e6;if(hfK.size>=2)s-=2e6;if(hlK.size>=2)s-=1e6;return s;
+}
+
+function aiOpen(){return board[CEN][CEN]===0?{r:CEN,c:CEN}:findEmpty()}
+function aiEasy(){
+  const AI=getAI(),HU=humanP;if(hist.length<=1)return aiOpen();
+  const cs=getCands(1);if(!cs.size)return findEmpty();
+  for(const k of cs){const r=Math.floor(k/SZ),c=k%SZ;if(scoreCell(r,c,HU)>=SLF)return{r,c}}
+  let mv=[];for(const k of cs){const r=Math.floor(k/SZ),c=k%SZ;mv.push({r,c,s:scoreCell(r,c,AI)+scoreCell(r,c,HU)*.8+Math.random()*5e3})}
+  mv.sort((a,b)=>b.s-a.s);if(mv.length>=3&&Math.random()<.4)return mv[Math.floor(Math.random()*3)];return mv[0];
+}
+function aiMedium(){
+  const AI=getAI(),HU=humanP;if(hist.length<=1)return aiOpen();
+  const cs=getCands(2);if(!cs.size)return findEmpty();
+  let bs=-1,bm=[];for(const k of cs){const r=Math.floor(k/SZ),c=k%SZ,sc=scoreCell(r,c,AI)*1.1+scoreCell(r,c,HU);if(sc>bs){bs=sc;bm=[{r,c}]}else if(sc===bs)bm.push({r,c})}
+  return bm[Math.floor(Math.random()*bm.length)];
+}
+function aiHard(){
+  const AI=getAI(),HU=humanP;if(hist.length<=1)return aiOpen();
+  const cs=getCands(2);if(!cs.size)return findEmpty();
+  const top=rankCands(cs,AI,HU,15);let bv=-Infinity,bm=top[0];
+  for(const m of top){
+    board[m.r][m.c]=AI;if(checkWin(m.r,m.c)){board[m.r][m.c]=0;return m}
+    let wv=Infinity;const ot=rankCands(getCands(2),HU,AI,10);
+    for(const o of ot){board[o.r][o.c]=HU;if(checkWin(o.r,o.c)){board[o.r][o.c]=0;board[m.r][m.c]=0;wv=-SMW;break}const v=evalBoard(AI);board[o.r][o.c]=0;if(v<wv)wv=v}
+    board[m.r][m.c]=0;if(wv===Infinity)wv=m.q;if(wv>bv){bv=wv;bm=m}
+  }
+  return bm;
+}
+function mmHell(d,mx,a,b,AI,HU){
+  if(!d)return evalBoard(AI);const cs=getCands(2);if(!cs.size)return evalBoard(AI);
+  const me=mx?AI:HU,op=mx?HU:AI,top=rankCands(cs,me,op,d>=2?12:10);
+  if(mx){let m=-Infinity;for(const t of top){board[t.r][t.c]=AI;if(checkWin(t.r,t.c)){board[t.r][t.c]=0;return SMW}const v=mmHell(d-1,false,a,b,AI,HU);board[t.r][t.c]=0;if(v>m)m=v;if(v>a)a=v;if(b<=a)break}return m}
+  else{let m=Infinity;for(const t of top){board[t.r][t.c]=HU;if(checkWin(t.r,t.c)){board[t.r][t.c]=0;return-SMW}const v=mmHell(d-1,true,a,b,AI,HU);board[t.r][t.c]=0;if(v<m)m=v;if(v<b)b=v;if(b<=a)break}return m}
+}
+function aiHell(){
+  const AI=getAI(),HU=humanP;if(hist.length<=1)return aiOpen();
+  const cs=getCands(2);if(!cs.size)return findEmpty();
+  const top=rankCands(cs,AI,HU,15);let bv=-Infinity,bm=top[0];
+  for(const m of top){board[m.r][m.c]=AI;if(checkWin(m.r,m.c)){board[m.r][m.c]=0;return m}const v=mmHell(2,false,-Infinity,Infinity,AI,HU);board[m.r][m.c]=0;if(v>bv){bv=v;bm=m}}
+  return bm;
+}
+function aiMove(){if(diff==='easy')return aiEasy();if(diff==='hard')return aiHard();if(diff==='hell')return aiHell();return aiMedium()}
+
+// ===================== Undo =====================
+function undo(){
+  if(!hist.length||aiThink||replayMode)return;
+  let steps;if(mode==='ai')steps=hist[hist.length-1].player===getAI()&&hist.length>=2?2:1;else steps=1;
+  over=false;stopWinAnim();wLine=null;
+  for(let i=0;i<steps&&hist.length;i++){const l=hist.pop();board[l.r][l.c]=0;curP=l.player}
+  updStatus();updInd();updCursor();draw();autoSave();
+}
+
+// ===================== Events =====================
+canvas.addEventListener('click',e=>{
+  if(over||aiThink||!isHuman()||replayMode)return;
+  const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const c=Math.round((mx-PAD)/CELL),r=Math.round((my-PAD)/CELL);
+  if(r<0||r>=SZ||c<0||c>=SZ)return;
+  if(curP===1){const fb=isBlackForbid(r,c);if(fb){showMsg(fb);playClick(200);return}}
+  if(placeStone(r,c)){if(!over)triggerAI();else if(hist.length>0)enterReplay()}
+});
+let drawPending=false;
+canvas.addEventListener('mousemove',e=>{
+  if(over||aiThink||!isHuman()||replayMode)return;
+  const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const nc=Math.round((mx-PAD)/CELL),nr=Math.round((my-PAD)/CELL);
+  if(nr!==hoverR||nc!==hoverC){hoverR=nr;hoverC=nc;if(!drawPending){drawPending=true;requestAnimationFrame(()=>{drawPending=false;draw()})}}
+});
+canvas.addEventListener('mouseleave',()=>{hoverR=hoverC=-1;draw()});
+
+// Touch support
+canvas.addEventListener('touchstart',e=>{e.preventDefault()},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();if(over||aiThink||!isHuman()||replayMode)return;
+  const t=e.changedTouches[0],rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+  const mx=(t.clientX-rect.left)*sx,my=(t.clientY-rect.top)*sy;
+  const c=Math.round((mx-PAD)/CELL),r=Math.round((my-PAD)/CELL);
+  if(r<0||r>=SZ||c<0||c>=SZ)return;
+  if(curP===1){const fb=isBlackForbid(r,c);if(fb){showMsg(fb);playClick(200);return}}
+  if(placeStone(r,c)){if(!over)triggerAI();else if(hist.length>0)enterReplay()}
+},{passive:false});
+
+document.getElementById('undoBtn').onclick=undo;
+document.getElementById('restartBtn').onclick=init;
+
+// Auto-load on refresh
+(function(){
+  const raw=localStorage.getItem('gomoku_autosave');
+  if(raw){try{const s=JSON.parse(raw);if(s&&s.hist&&s.hist.length>0&&!s.over){showMenu()}}catch(e){}}
+})();
+
+showMenu();init();
+</script>
+</body>
+</html>
