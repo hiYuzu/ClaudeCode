@@ -55,6 +55,8 @@ button.back{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15);
   <div class="sub-panel show" id="mainMenu"><h2>选择游戏模式</h2><div class="menu-buttons">
     <button class="primary" id="btnAI">人机对战</button><div class="mode-tag">与 AI 对弈，可选难度和执子</div><div class="menu-sep"></div>
     <button class="primary" id="btnLocal">本地双人</button><div class="mode-tag">两位玩家轮流落子</div>
+    <div class="menu-sep"></div>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#666"><input type="checkbox" id="forbidCheck2" checked>启用黑棋禁手（三三·四四·长连）</label>
   </div></div>
   <div class="sub-panel" id="diffMenu"><h2>选择 AI 难度</h2><div class="menu-buttons">
     <button class="primary" id="btnEasy">简 单</button><div class="diff-label">偶尔犯错，适合新手</div>
@@ -64,7 +66,9 @@ button.back{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15);
   </div><button class="back" id="btnBack1">← 返回</button></div>
   <div class="sub-panel" id="sideMenu"><h2>选择执子</h2>
     <div class="side-row"><div class="side-btn" id="btnBlack"><span class="stone-icon black"></span><span>执黑先行</span></div><div class="side-btn" id="btnWhite"><span class="stone-icon white"></span><span>执白后手</span></div></div>
-    <div class="side-hint">黑棋先落子 · 适用禁手规则</div><button class="back" id="btnBack2">← 返回</button></div>
+    <div class="side-hint">黑棋先落子</div>
+    <div class="side-row" style="margin-top:4px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;color:#555"><input type="checkbox" id="forbidCheck" checked>启用黑棋禁手（三三·四四·长连）</label></div>
+    <button class="back" id="btnBack2">← 返回</button></div>
 </div>
 <div class="container">
   <h1>五 子 棋</h1>
@@ -93,7 +97,7 @@ const SW=1e6,SLF=1e5,SDF=1e4,SLT=1e4,SDT=1e3,SL2=1e3,SD2=100,SMW=1e7;
 const canvas=document.getElementById('board'),ctx=canvas.getContext('2d');
 canvas.width=CSZ;canvas.height=CSZ;
 
-let board,curP,over,hist,wLine,scores=[0,0],mode=null,diff=null,humanP=1;
+let board,curP,over,hist,wLine,scores=[0,0],mode=null,diff=null,humanP=1,forbid=true;
 let aiThink=false,moveGen=0,showNums=false,hoverR=-1,hoverC=-1;
 let forbidTmr=null,timers=[0,0],timerInt=null,timerRunning=false;
 let replayMode=false,replayIdx=0,replayAuto=false,replayAutoId=null;
@@ -118,6 +122,7 @@ const panels=['mainMenu','diffMenu','sideMenu'];
 function showP(id){panels.forEach(p=>document.getElementById(p).classList.remove('show'));document.getElementById(id).classList.add('show')}
 function showMenu(){document.getElementById('menu').classList.remove('hidden');showP('mainMenu')}
 function hideMenu(){document.getElementById('menu').classList.add('hidden')}
+function updForbidHint(){document.querySelector('.forbid-hint').textContent=forbid?'黑棋禁手：三三 · 四四 · 长连':'黑棋禁手：未启用';document.getElementById('forbidCheck').checked=forbid;document.getElementById('forbidCheck2').checked=forbid}
 function startGame(m,d,s){
   mode=m;diff=d||null;humanP=s||1;hideMenu();
   const dn=diff==='easy'?'简单':diff==='hard'?'困难':diff==='hell'?'地狱':'中等';
@@ -135,6 +140,8 @@ document.getElementById('btnMedium').onclick=()=>{diff='medium';showP('sideMenu'
 document.getElementById('btnHard').onclick=()=>{diff='hard';showP('sideMenu')};
 document.getElementById('btnHell').onclick=()=>{diff='hell';showP('sideMenu')};
 document.getElementById('btnBlack').onclick=()=>startGame('ai',diff,1);
+document.getElementById('forbidCheck').onchange=function(){forbid=this.checked;updForbidHint()};
+document.getElementById('forbidCheck2').onchange=function(){forbid=this.checked;document.getElementById('forbidCheck').checked=forbid;updForbidHint()};
 document.getElementById('btnWhite').onclick=()=>startGame('ai',diff,2);
 document.getElementById('switchBtn').onclick=()=>{scores=[0,0];updScores();showMenu()};
 document.getElementById('moveNumBtn').onclick=()=>{showNums=!showNums;draw()};
@@ -162,7 +169,7 @@ function updTimerUI(){
 // ===================== Save / Load =====================
 function saveGame(){
   try{
-    const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers};
+    const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers,forbid};
     localStorage.setItem('gomoku_save',JSON.stringify(s));showMsg('棋局已保存');
   }catch(e){showMsg('保存失败：存储空间不足')}
 }
@@ -171,6 +178,7 @@ function loadGame(){
   try{
     const s=JSON.parse(raw);moveGen++;board=s.board;curP=s.curP;over=s.over;hist=s.hist;
     wLine=s.wLine;scores=s.scores;mode=s.mode;diff=s.diff;humanP=s.humanP;
+    if(s.forbid!==undefined){forbid=s.forbid;updForbidHint()}
     timers=s.timers||[0,0];
     resetTimers();if(!over)startTimer();
     const dn=diff==='easy'?'简单':diff==='hard'?'困难':diff==='hell'?'地狱':'中等';
@@ -216,7 +224,7 @@ document.getElementById('rpExit').onclick=exitReplay;
 function cntLine(r,c,dr,dc,p){let n=1;for(let i=1;i<=5;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;n++}for(let i=1;i<=5;i++){const nr=r-dr*i,nc=c-dc*i;if(nr<0||nr>=SZ||nc<0||nc>=SZ||board[nr][nc]!==p)break;n++}return n}
 function exact5(r,c){for(const[dr,dc]of DIRS)if(cntLine(r,c,dr,dc,1)===5)return true;return false}
 function isBlackForbid(r,c){
-  if(board[r][c]!==0)return null;
+  if(!forbid||board[r][c]!==0)return null;
   board[r][c]=1;
   if(exact5(r,c)){board[r][c]=0;return null}
   for(const[dr,dc]of DIRS)if(cntLine(r,c,dr,dc,1)>=6){board[r][c]=0;return'长连禁手'}
@@ -239,7 +247,7 @@ function cntFoursDir(r,c,dr,dc){
     if(!ok||bk!==4||ec!==1)continue;
     board[er][en]=1;const g=cntLine(er,en,dr,dc,1)===5;board[er][en]=0;
     if(!g)continue;
-    keys.push(er*SZ+en);seen.add(keys.sort((a,b)=>a-b).join(','));
+    seen.add(keys.sort((a,b)=>a-b).join(','));
   }
   return seen.size;
 }
@@ -374,7 +382,7 @@ function placeStone(r,c){
   else{curP=curP===1?2:1;updStatus()}
   updInd();updCursor();draw();return true;
 }
-function autoSave(){try{const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers};localStorage.setItem('gomoku_autosave',JSON.stringify(s))}catch(e){}}
+function autoSave(){try{const s={board,curP,over,hist,wLine,scores,mode,diff,humanP,timers,forbid};localStorage.setItem('gomoku_autosave',JSON.stringify(s))}catch(e){}}
 
 function triggerAI(){
   if(over||!isAI())return;aiThink=true;updInd();updCursor();
