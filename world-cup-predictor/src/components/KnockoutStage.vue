@@ -52,18 +52,25 @@ function onMatchSelect(roundKey: string, matchId: number, team: any) {
 
     <BracketRow
       :matches="upperR32" round-label="32强" round-key="r32"
+      :match-count="8"
       @select="(id, team) => onMatchSelect('r32', id, team)"
     />
+    <div class="round-separator"><span class="arrow down">▼</span></div>
     <BracketRow
       :matches="upperR16" round-label="16强" round-key="r16"
+      :match-count="4"
       @select="(id, team) => onMatchSelect('r16', id, team)"
     />
+    <div class="round-separator"><span class="arrow down">▼</span></div>
     <BracketRow
       :matches="upperQF" round-label="¼决赛" round-key="qf"
+      :match-count="2"
       @select="(id, team) => onMatchSelect('qf', id, team)"
     />
+    <div class="round-separator"><span class="arrow down">▼</span></div>
     <BracketRow
       :matches="upperSF" round-label="半决赛" round-key="sf"
+      :match-count="1"
       @select="(id, team) => onMatchSelect('sf', id, team)"
     />
 
@@ -71,18 +78,25 @@ function onMatchSelect(roundKey: string, matchId: number, team: any) {
 
     <BracketRow
       :matches="lowerSF" round-label="半决赛" round-key="sf"
+      :match-count="1"
       @select="(id, team) => onMatchSelect('sf', id, team)"
     />
+    <div class="round-separator"><span class="arrow up">▲</span></div>
     <BracketRow
       :matches="lowerQF" round-label="¼决赛" round-key="qf"
+      :match-count="2"
       @select="(id, team) => onMatchSelect('qf', id, team)"
     />
+    <div class="round-separator"><span class="arrow up">▲</span></div>
     <BracketRow
       :matches="lowerR16" round-label="16强" round-key="r16"
+      :match-count="4"
       @select="(id, team) => onMatchSelect('r16', id, team)"
     />
+    <div class="round-separator"><span class="arrow up">▲</span></div>
     <BracketRow
       :matches="lowerR32" round-label="32强" round-key="r32"
+      :match-count="8"
       @select="(id, team) => onMatchSelect('r32', id, team)"
     />
 
@@ -101,5 +115,47 @@ function onMatchSelect(roundKey: string, matchId: number, team: any) {
   color: var(--accent);
   font-weight: 600;
   padding: 6px 0;
+}
+.round-separator {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+.round-separator .arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  animation: float 2s ease-in-out infinite;
+}
+.round-separator:hover .arrow {
+  color: var(--accent);
+}
+.round-separator .arrow.down {
+  animation-name: float-down;
+}
+.round-separator .arrow.up {
+  animation-name: float-up;
+}
+@keyframes float-down {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+@keyframes float-up {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Responsive: smaller screens */
+@media (max-width: 480px) {
+  .knockout-stage {
+    padding: 4px 0;
+  }
+  .half-label {
+    font-size: 11px;
+    padding: 4px 0;
+  }
+  .round-separator .arrow {
+    font-size: 8px;
+  }
 }
 </style>
