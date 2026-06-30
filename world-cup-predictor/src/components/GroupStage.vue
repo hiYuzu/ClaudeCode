@@ -6,7 +6,7 @@ import GroupCard from './GroupCard.vue'
 import BestThirdPicker from './BestThirdPicker.vue'
 
 const completedCount = computed(() =>
-  GROUP_NAMES.filter(g => store.groups[g].first && store.groups[g].second).length
+  GROUP_NAMES.filter(g => store.groups[g].first && store.groups[g].second && store.groups[g].third).length
 )
 </script>
 

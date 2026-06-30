@@ -1,6 +1,16 @@
+import type { Team } from '../data/tournament'
+import type { KnockoutRound } from './bracket'
+
+export interface PredictionData {
+  groups: Record<string, { first: Team | null; second: Team | null; third: Team | null }>
+  bestThirds: string[]
+  knockout: KnockoutRound
+  champion: Team | null
+}
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-export async function loadPrediction(): Promise<any> {
+export async function loadPrediction(): Promise<PredictionData | null> {
   try {
     const res = await fetch('/api/prediction')
     if (!res.ok) return null
@@ -11,7 +21,7 @@ export async function loadPrediction(): Promise<any> {
   }
 }
 
-export function savePrediction(data: any, immediate = false) {
+export function savePrediction(data: PredictionData, immediate = false) {
   const doSave = () => {
     fetch('/api/prediction', {
       method: 'PUT',

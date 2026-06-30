@@ -34,34 +34,55 @@ import MatchUp from './MatchUp.vue'
 
 <style scoped>
 .final-section {
-  border-top: 2px solid var(--gold);
-  border-bottom: 2px solid var(--gold);
-  padding: 16px 0;
+  border-top: 3px solid var(--gold);
+  border-bottom: 3px solid var(--gold);
+  padding: 24px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
+  margin: 20px 0;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+  border-radius: var(--radius-lg);
 }
 .final-matches {
   display: flex;
   justify-content: center;
-  gap: 24px;
+  gap: 40px;
   flex-wrap: wrap;
 }
-.final-match { min-width: 140px; }
+.final-match { 
+  min-width: 180px;
+}
+.final-match { 
+  min-width: 160px;
+  animation: fadeIn 0.5s ease-out;
+}
 .champion-banner {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: var(--gold);
   text-align: center;
-  padding: 8px 24px;
+  padding: 16px 32px;
   background: var(--bg-card);
-  border-radius: var(--radius-md);
-  border: 2px solid var(--gold);
-  animation: pulse 2s infinite;
+  border-radius: var(--radius-lg);
+  border: 3px solid var(--gold);
+  animation: champion-glow 2s infinite;
+  box-shadow: 0 0 30px var(--gold-glow);
+  letter-spacing: 1px;
 }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+@keyframes champion-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px var(--gold-glow);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 40px var(--gold-glow);
+    transform: scale(1.02);
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

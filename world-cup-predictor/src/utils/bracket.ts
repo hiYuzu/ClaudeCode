@@ -55,8 +55,8 @@ export function generateR32(
 
   return R32_TEMPLATE.map(tmpl => {
     const match = emptyMatch(tmpl.id)
-    match.team1 = resolveSlot(tmpl.slot1, groupWinners, groupRunners, groupThirds, resolved, tmpl.id, true)
-    match.team2 = resolveSlot(tmpl.slot2, groupWinners, groupRunners, groupThirds, resolved, tmpl.id, false)
+    match.team1 = resolveSlot(tmpl.slot1, groupWinners, groupRunners, groupThirds, resolved, tmpl.id)
+    match.team2 = resolveSlot(tmpl.slot2, groupWinners, groupRunners, groupThirds, resolved, tmpl.id)
     return match
   }).sort((a, b) => a.id - b.id)
 }
@@ -68,7 +68,6 @@ function resolveSlot(
   thirds: Record<string, Team>,
   resolvedThirds: Record<number, string>,
   matchId: number,
-  isFirst: boolean,
 ): Team | null {
   if (slot.type === 'winner') return winners[slot.group] || null
   if (slot.type === 'runner') return runners[slot.group] || null

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Team } from '../data/tournament'
 import type { Match } from '../utils/bracket'
 import MatchUp from './MatchUp.vue'
 
@@ -9,7 +10,7 @@ const props = defineProps<{
   matchCount?: number
 }>()
 
-const emit = defineEmits<{ select: [matchId: number, team: any] }>()
+const emit = defineEmits<{ select: [matchId: number, team: Team | null] }>()
 </script>
 
 <template>
@@ -20,10 +21,6 @@ const emit = defineEmits<{ select: [matchId: number, team: any] }>()
         v-for="(match, index) in matches"
         :key="match.id"
         class="match-wrapper"
-        :class="{
-          'connector-top': index % 2 === 0,
-          'connector-bottom': index % 2 === 1
-        }"
       >
         <MatchUp
           :team1="match.team1"
@@ -41,81 +38,39 @@ const emit = defineEmits<{ select: [matchId: number, team: any] }>()
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  padding: 8px 0;
 }
 .round-label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 6px;
-  font-weight: 600;
+  margin-bottom: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--bg-highlight);
+  padding: 5px 14px;
+  border-radius: 999px;
 }
 .matches-row {
   display: flex;
   justify-content: center;
-  gap: 6px;
+  gap: 14px;
   flex-wrap: nowrap;
 }
 .match-wrapper {
   flex-shrink: 0;
   position: relative;
-  padding: 3px 12px 3px 0;
-}
-
-/* Bracket connector lines: pairs of matches converge into next round */
-/* Top match in a pair: horizontal line going right + vertical line going down */
-.match-wrapper.connector-top::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 12px;
-  height: 0;
-  border-top: 1px solid var(--border-default);
-}
-.match-wrapper.connector-top::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 0;
-  height: calc(50% + 3px);
-  border-right: 1px solid var(--border-default);
-}
-
-/* Bottom match in a pair: horizontal line going right + vertical line going up */
-.match-wrapper.connector-bottom::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 12px;
-  height: 0;
-  border-top: 1px solid var(--border-default);
-}
-.match-wrapper.connector-bottom::before {
-  content: '';
-  position: absolute;
-  bottom: 50%;
-  right: 0;
-  width: 0;
-  height: calc(50% + 3px);
-  border-right: 1px solid var(--border-default);
 }
 
 /* Responsive: smaller screens */
 @media (max-width: 480px) {
   .matches-row {
-    gap: 3px;
-  }
-  .match-wrapper {
-    padding: 2px 8px 2px 0;
-  }
-  .match-wrapper.connector-top::after,
-  .match-wrapper.connector-bottom::after {
-    width: 8px;
+    gap: 6px;
   }
   .round-label {
-    font-size: 10px;
+    font-size: 11px;
+    padding: 3px 10px;
   }
 }
 </style>
